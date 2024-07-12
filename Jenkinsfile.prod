@@ -1,0 +1,137 @@
+// Production server
+pipeline {
+    agent any
+    environment {
+        // Define the email recipient address as an environment variable
+          MAIL_ID = '(MAIL_ID)'  // Change your mail ID here example:chenna.m@getster.tech
+         app_id = '(APP_ID)'
+    }
+
+    post {
+        always {
+            echo 'These actions run regardless of build status.'
+            // Add your post-build actions that always run here
+            emailext (
+                subject: 'Your Backend production Started Notification',
+                body: 'Your Backend production build was started.',
+                to: "${MAIL_ID}",
+                mimeType: 'text/html',
+                attachLog: true,  // Attach the build log to the email
+                from: 'jenkins@getster.tech'  // Use the fully qualified sender address
+            )
+        }
+        success {
+            echo 'Your Backend production Build succeeded! Sending email notification...'
+            emailext (
+                subject: 'Your Backend production Build Success Notification',
+                body: 'Your Backend production build was successful.',
+                to: "${MAIL_ID}",
+                mimeType: 'text/html',
+                attachLog: true,  // Attach the build log to the email
+                from: 'jenkins@getster.tech'  // Use the fully qualified sender address
+            )
+        }
+        failure {
+            echo 'Your Backend production Build failed! Sending email notification...'
+            emailext (
+                subject: 'Your Backend production Build Failure Notification',
+                body: 'Your Backend production build has failed. Please investigate.',
+                to: "${MAIL_ID}",
+                mimeType: 'text/html',
+                attachLog: true,  // Attach the build log to the email
+                from: 'jenkins@getster.tech'  // Use the fully qualified sender address
+            )
+        }
+        aborted {
+            echo 'Your Backend production Build aborted! Sending abort notification...'
+            emailext (
+                subject: 'Your Backend production Build Aborted Notification',
+                body: 'Your Backend production build has been aborted.',
+                to: "${MAIL_ID}",
+                mimeType: 'text/html',
+                attachLog: true,
+                from: 'jenkins@getster.tech'
+            )
+        }
+    }
+
+    stages {
+        stage('Approval') {
+            steps {
+                timeout(time: 30, unit: 'MINUTES') { // Set a timeout of 5 minutes for approval
+                    input(
+                        id: 'userInput',
+                        message: 'Please approve to proceed with deployment',
+                        submitter: 'admin'
+                    )
+                }
+            }
+        }
+
+        stage('Build') {
+            steps {
+                sh 'yarn'
+                sh 'npx nest build'
+            }
+        }
+
+        stage('Dockerfile') {
+            steps {
+                dir('dist/') {
+                    writeFile file: 'Dockerfile', text: '''
+                        FROM node:latest
+                        WORKDIR /usr/src/app
+                        COPY package*.json ./
+                        RUN yarn
+                        COPY . .
+                        EXPOSE 3000
+                        CMD ["sh", "-c", "echo 'nameserver 8.8.8.8' >> /etc/resolv.conf && node main.js"]
+                    '''
+                }
+            }
+        }
+
+        stage('dist') {
+            steps {
+                dir('dist/') {
+                    withCredentials([string(credentialsId: 'PROMYSQL_PASSWORD', variable: 'PROMYSQL_PASSWORD')]) {
+                        writeFile file: "${app_id}api.sh", text: '''
+                            pattern="'(?<=:v)\\d+'"
+                            sudo sed -i 's#^\\s*PORT\\s*=\\s*.*#PORT=3000#' .env
+                            sudo sed -i 's#^\\s*DB_USERNAME\\s*=\\s*.*#DB_USERNAME=getster#' .env
+                            sudo sed -i 's#^\\s*DB_PASSWORD\\s*=\\s*.*#DB_PASSWORD=''' + "${PROMYSQL_PASSWORD}" + '''#' .env
+                            sudo sed -i 's#^\\s*DB_HOST\\s*=\\s*.*#DB_HOST=db.getster.technology#' .env
+                            file="${app_id}/${app_id}api.yaml"
+                            image="${app_id}api"
+                            current_version=$(ssh root@49.50.69.123 -p2235 "grep -oP \$pattern /root/getster-apps/\$file")
+                            new_version=$(echo \$current_version | awk -F. -v OFS=. '{++\$NF; print}')
+                            new_version="v\$new_version"
+                            sudo docker build . -t ghcr.io/imagesgetstertech/${app_id}api:\$new_version
+                            sudo docker push ghcr.io/imagesgetstertech/${app_id}api:\$new_version
+                            ssh root@49.50.69.123 -p2235 "sed -i 's|image: ghcr.io/imagesgetstertech/\$image:.*|image: ghcr.io/imagesgetstertech/\$image:\$new_version|g' /root/getster-apps/\$file"
+                            ssh root@49.50.69.123 -p2235 "kubectl apply -f /root/getster-apps/\$file"
+                        '''
+                    }
+                }
+            }
+        }
+
+        stage('cp') {
+            steps {
+                dir('dist/') {
+                    sh 'cp ../package*.json .'
+                    sh 'cp ../.env .'
+                }
+            }
+        }
+
+        stage('run') {
+            steps {
+                dir('dist/') {
+                    sh "chmod +x ${app_id}api.sh"
+                    sh "./${app_id}api.sh"
+                }
+            }
+        }
+    }
+}
