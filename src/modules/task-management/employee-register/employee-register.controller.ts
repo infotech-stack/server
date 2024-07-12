@@ -111,7 +111,7 @@ uploadFile2(@UploadedFile('file') file) {
 }
 @Get('getFile')
 async getFile(@Res() res: Response, @Query('file') fileName: string): Promise<void> {
-  const filePath = path.join(__dirname, `../uploads/${fileName}`);
+  const filePath = path.join(`D:/Rks-project/RKS/server/uploads/${fileName}`);
   console.log(filePath);
   
   try {
