@@ -28,3 +28,23 @@ export class loginDto{
     @ApiProperty()
     employee_password:string
 }
+export class TaskAssignDto{
+
+  
+    @ApiProperty()
+    start_date: Date;
+  
+    @ApiProperty()
+    end_date: Date;
+  
+    @ApiProperty()
+    project_status: string;
+  
+    @ApiProperty()
+    is_deleted: number;
+    @ApiProperty()
+    project_name: string;
+    @ApiProperty()
+    assignTo: number[];
+
+}

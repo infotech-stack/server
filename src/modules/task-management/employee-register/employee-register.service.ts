@@ -1,6 +1,6 @@
 import { HttpStatus, Injectable } from '@nestjs/common';
 import { dbConnection } from 'src/app.module';
-import { InsertEmployeeInterface } from 'src/models/interface/register-employee.interface';
+import { InsertEmployeeInterface, TaskAssignInterface } from 'src/models/interface/register-employee.interface';
 import * as mysql from 'mysql2';
 import ResponseInterface from 'src/models/interface/response.interface';
 import { ResponseMessageEnum } from 'src/models/enum/response-message.enum';
@@ -212,20 +212,208 @@ JOIN
   }
   //TASK ASSIGN
 
-  // async createTask(createTaskDto: CreateTaskDto, files: Express.Multer.File[]): Promise<Task> {
-  //   const task = new Task();
-  //   task.projectName = createTaskDto.projectName;
-  //   task.startDate = new Date(createTaskDto.startDate);
-  //   task.endDate = new Date(createTaskDto.endDate);
-  //   task.projectStatus = createTaskDto.projectStatus;
-  //   task.taskName = createTaskDto.taskName;
-  //   task.deadline = new Date(createTaskDto.deadline);
-  //   task.assignTo = createTaskDto.assignTo;
+  // async createTask(formData: TaskAssignInterface, filename: string[]): Promise<ResponseInterface> {
+  //   try {
+   
+  //     const start= new Date(formData.start_date).toISOString().slice(0, 19).replace('T', ' ');
+  //     const end = new Date(formData.end_date).toISOString().slice(0, 19).replace('T', ' ');
+  //     console.log(start,end);
+      
+  //     await dbConnection.query(
+  //       `
+  //       INSERT INTO task_management.task_assign_to_employee
+  //       (
+  //         project_name,
+  //         start_date,
+  //         end_date,
+  //         project_status,
+  //         task_name,
+  //         assign_to,
+  //         file_names,
+  //         is_deleted
+  //       ) 
+  //       VALUES (?, ?, ?, ?, ?, ?, ?, ?)
+  //       `,
+  //       [
+  //         formData.project_name,
+  //         start,
+  //         end,
+  //         formData.project_status,
+  //         formData.task_name,
+  //         formData.assign_to,
+  //         JSON.stringify(filename),
+  //         0 
+  //       ]
+  //     );
 
-  //   // Save files to database or storage system
-  //   task.fileAttachments = files.map(file => file.filename); // Store filenames in the database
-
-  //   // Save task details to the database
-  //   return this.taskRepository.save(task);
-  // }
+  //     return {
+  //       statusCode: HttpStatus.ACCEPTED,
+  //       message: ResponseMessageEnum.ADD,
+  //       data: true
+  //     };
+  //   } catch (error) {
+  //     throw error;
+  //   }
+  // } 
+  async gettask(): Promise<ResponseInterface> {
+    try {
+      const data= await dbConnection.query(`
+        SELECT * FROM task_management.task_assign_to_employee;
+        `);
+      return {
+        statusCode: HttpStatus.OK,
+        message: ResponseMessageEnum.GET,
+        data: data
+      };
+    } catch (error) {
+      throw error;
+    }
+  }
+  async taskAssignToEmployee(formData: TaskAssignInterface): Promise<ResponseInterface> {
+    try {
+      const start = new Date(formData.start_date).toISOString().slice(0, 19).replace('T', ' ');
+      const end = new Date(formData.end_date).toISOString().slice(0, 19).replace('T', ' ');
+  
+      // Insert the task into the tasks table
+      const taskResult = await dbConnection.query(
+        `
+        INSERT INTO task_management.task_assign_to_employee
+        (
+          project_name,
+          start_date,
+          end_date,
+          project_status,
+          is_deleted
+        ) 
+        VALUES (?, ?, ?, ?, ?)
+        `,
+        [
+          formData.project_name,
+          start,
+          end,
+          formData.project_status,
+          0
+        ]
+      );
+  
+      const taskId = taskResult.insertId;
+  
+      // Insert task assignments
+      for (const empId of formData.assignTo) {
+        await dbConnection.query(
+          `
+          INSERT INTO task_management.task_assignments
+          (
+            task_id,
+            empId
+          ) 
+          VALUES (?, ?)
+          `,
+          [
+            taskId,
+            empId
+          ]
+        );
+      }
+  
+      return {
+        statusCode: HttpStatus.ACCEPTED,
+        message: ResponseMessageEnum.ADD,
+        data: true
+      };
+    } catch (error) {
+      throw error;
+    }
+  }
+  
+  async updateTask(taskId: number, formData: TaskAssignInterface): Promise<ResponseInterface> {
+    try {
+      const start = new Date(formData.start_date).toISOString().slice(0, 19).replace('T', ' ');
+      const end = new Date(formData.end_date).toISOString().slice(0, 19).replace('T', ' ');
+  
+      // Update the task details
+      await dbConnection.query(
+        `
+        UPDATE task_management.task_assign_to_employee
+        SET
+          project_name = ?,
+          start_date = ?,
+          end_date = ?,
+          project_status = ?,
+          is_deleted = ?
+        WHERE task_id = ?
+        `,
+        [
+          formData.project_name,
+          start,
+          end,
+          formData.project_status,
+          formData.is_deleted,
+          taskId
+        ]
+      );
+  
+      // Remove old assignments
+      await dbConnection.query(
+        `
+        DELETE FROM task_management.task_assignments
+        WHERE task_id = ?
+        `,
+        [taskId]
+      );
+  
+      // Insert new task assignments
+      for (const empId of formData.assignTo) {
+        await dbConnection.query(
+          `
+          INSERT INTO task_management.task_assignments
+          (
+            task_id,
+            empId
+          ) 
+          VALUES (?, ?)
+          `,
+          [
+            taskId,
+            empId
+          ]
+        );
+      }
+  
+      return {
+        statusCode: HttpStatus.OK,
+        message: ResponseMessageEnum.UPDATE,
+        data: true
+      };
+    } catch (error) {
+      throw error;
+    }
+  }
+  
+  async deleteTask(
+    empId: number,
+    employeeDetails: TaskAssignInterface
+  ): Promise<ResponseInterface> {
+    try {
+      const employeeId=JSON.stringify(employeeDetails.assignTo);
+      await dbConnection.query(`
+            UPDATE task_management.task_assign_to_employee
+            SET
+              start_date = ${mysql.escape(employeeDetails.start_date)},
+              end_date = ${mysql.escape(employeeDetails.end_date)},
+              project_status = ${mysql.escape(employeeDetails.project_status)},
+              is_deleted = 1,
+              empId = ${mysql.escape(employeeId)},
+              project_name = ${mysql.escape(employeeDetails.project_name)},
+            WHERE empId = ${mysql.escape(empId)}
+          `);
+      return {
+        statusCode: HttpStatus.OK,
+        message: ResponseMessageEnum.DELETE,
+        data: true
+      };
+    } catch (error) {
+      throw error;
+    }
+  }
 }

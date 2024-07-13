@@ -14,3 +14,12 @@ export interface LoginInterface{
     employee_name:string;
     employee_password:string;
 }
+export interface TaskAssignInterface{
+
+    start_date: Date;
+    end_date: Date;
+    project_status: string;
+    is_deleted: number;
+    project_name: string;
+    assignTo: number[];
+}
