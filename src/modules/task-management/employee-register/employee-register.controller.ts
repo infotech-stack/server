@@ -1,11 +1,11 @@
 import { Body, Controller, Delete, Get, Post, Put, Query, Res, UploadedFile, UploadedFiles, UseInterceptors } from "@nestjs/common";
-import { InsertEmployeeDto, TaskAssignDto } from 'src/models/dto/register-employee.dto';
+import {  GetTaskByRolesDto, InsertEmployeeDto, TaskAssignDto } from 'src/models/dto/register-employee.dto';
 import { EmployeeRegisterService } from './employee-register.service';
 import { FileFieldsInterceptor, FileInterceptor, FilesInterceptor } from '@nestjs/platform-express';
 import { diskStorage } from 'multer';
 import {Response} from "express";
 import  * as path from "path";
-import { ApiBody, ApiConsumes } from "@nestjs/swagger";
+import { ApiBody, ApiConsumes, ApiQuery } from "@nestjs/swagger";
 import { FileExtender } from "src/common/interceptors/fileExtender.interceptor";
 import * as fs from 'fs';
 
@@ -140,13 +140,12 @@ async getEmployeeAttendance(){
 // }
 
 //TASK ASSIGN
-@Get('get-task')
-async getTask(){
-    try {
-      return  this._employeeRegisterService.gettask()
-    } catch (error) {
-        throw error;
-    }
+@Post('get-Tasks-ByRole')
+@ApiQuery({ name: 'empId', type: Number })
+@ApiBody({ type: GetTaskByRolesDto })
+async getTasksByRole(@Query('empId') empId: number, @Body() getTasksByRoleDto: GetTaskByRolesDto) {
+  const { roles } = getTasksByRoleDto;
+  return this._employeeRegisterService.getTasksByRole(empId, roles);
 }
 @Post('task-assign-to-employee')
 async taskAssignToEmployee(@Body() formData: TaskAssignDto) {
@@ -157,17 +156,17 @@ async taskAssignToEmployee(@Body() formData: TaskAssignDto) {
   }
 }
 @Put('update-task')
-async updateTask(@Query('task_id') task_id:number, @Body( ) registerDetails:TaskAssignDto){
+async updateTask(@Query('task_id') task_id:number,@Query('empId') empId:number, @Body( ) registerDetails:TaskAssignDto){
     try {
-      return  this._employeeRegisterService.updateTask(task_id,registerDetails);
+      return  this._employeeRegisterService.updateTask(task_id,empId,registerDetails);
     } catch (error) {
         throw error;
     }
 }
 @Put('delete-task')
-async deleteTask(@Query('task_id') task_id:number, @Body( ) registerDetails:TaskAssignDto){
+async deleteTask(@Query('task_id') task_id:number,@Query('empId') empId:number){
     try {
-      return  this._employeeRegisterService.deleteTask(task_id,registerDetails);
+      return  this._employeeRegisterService.deleteTask(task_id,empId);
     } catch (error) {
         throw error;
     }

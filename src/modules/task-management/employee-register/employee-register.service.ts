@@ -30,10 +30,10 @@ export class EmployeeRegisterService {
         const formattedLoginDateTime = loginDateTime.toISOString().slice(0, 19).replace('T', ' '); // Format to YYYY-MM-DD HH:MM:SS
 
         // Insert login datetime into login_and_logout table
-        await dbConnection.query(`
-                    INSERT INTO task_management.login_and_logout (login_date_time, empId)
-                    VALUES (${mysql.escape(formattedLoginDateTime)}, ${mysql.escape(empId)})
-                `);
+        // await dbConnection.query(`
+        //             INSERT INTO task_management.login_and_logout (login_date_time, empId)
+        //             VALUES (${mysql.escape(formattedLoginDateTime)}, ${mysql.escape(empId)})
+        //         `);
         return {
           statusCode: HttpStatus.OK,
           message: ResponseMessageEnum.GET,
@@ -210,6 +210,32 @@ JOIN
       throw error;
     }
   }
+  async employeeFilter(): Promise<ResponseInterface> {
+    try {
+
+      const data = await dbConnection.query(`
+       SELECT 
+       er.empId,
+    er.employee_name,
+    er.employee_designation,
+    er.employee_cabinno AS cabinNo,
+    DATE_FORMAT(ll.login_date_time, '%Y-%m-%d %H:%i:%s') AS login_date_time,
+    DATE_FORMAT(ll.logout_date_time, '%Y-%m-%d %H:%i:%s') AS logout_date_time
+FROM 
+    task_management.employee_register er
+JOIN 
+    task_management.login_and_logout ll ON er.empId = ll.empId;
+
+          `);
+      return {
+        statusCode: HttpStatus.ACCEPTED,
+        message: ResponseMessageEnum.UPDATE,
+        data: data
+      };
+    } catch (error) {
+      throw error;
+    }
+  }
   //TASK ASSIGN
 
   // async createTask(formData: TaskAssignInterface, filename: string[]): Promise<ResponseInterface> {
@@ -255,15 +281,54 @@ JOIN
   //     throw error;
   //   }
   // } 
-  async gettask(): Promise<ResponseInterface> {
+  async getTasksByRole(empId: number, roles: string[]): Promise<any> {
     try {
-      const data= await dbConnection.query(`
-        SELECT * FROM task_management.task_assign_to_employee;
-        `);
+      // Base query
+      let query = `
+        SELECT
+          e.empId,
+          e.employee_name,
+          JSON_ARRAYAGG(
+            JSON_OBJECT(
+              'task_id', t.task_id,
+              'start_date', DATE_FORMAT(t.start_date,'%Y-%m-%d %H:%i:%s'),
+              'end_date', DATE_FORMAT(t.end_date,'%Y-%m-%d %H:%i:%s'),
+              'project_status', t.project_status,
+              'is_deleted', t.is_deleted,
+              'project_name', t.project_name
+            )
+          ) AS taskDetails
+        FROM
+          task_management.task_assign_to_employee t
+        JOIN
+          task_management.task_assignments a ON t.task_id = a.task_id
+        JOIN
+          task_management.employee_register e ON a.empId = e.empId
+        WHERE
+          t.is_deleted = 0
+      `;
+  
+      // Check for "Admin" or "Team Lead" roles
+      if (roles.includes('Admin') || roles.includes('Team Lead')) {
+        query += `
+          GROUP BY e.empId
+        `;
+      } else {
+        query += `
+          AND e.empId = ?
+          GROUP BY e.empId
+        `;
+      }
+  
+      // Execute query
+      const tasks = roles.includes('Admin') || roles.includes('Team Lead') 
+        ? await dbConnection.query(query)
+        : await dbConnection.query(query, [empId]);
+  
       return {
         statusCode: HttpStatus.OK,
         message: ResponseMessageEnum.GET,
-        data: data
+        data: tasks
       };
     } catch (error) {
       throw error;
@@ -325,95 +390,118 @@ JOIN
       throw error;
     }
   }
-  
-  async updateTask(taskId: number, formData: TaskAssignInterface): Promise<ResponseInterface> {
+  async updateTask(taskId: number, empId: number, formData: TaskAssignInterface): Promise<ResponseInterface> {
     try {
       const start = new Date(formData.start_date).toISOString().slice(0, 19).replace('T', ' ');
       const end = new Date(formData.end_date).toISOString().slice(0, 19).replace('T', ' ');
+
+      if (empId) {
+        try {
+          // Update task details
+          await dbConnection.query(
+            `
+            UPDATE task_management.task_assign_to_employee
+            SET
+              project_name = ?,
+              start_date = ?,
+              end_date = ?,
+              project_status = ?,
+              is_deleted = ?
+            WHERE task_id = ?
+            `,
+            [
+              formData.project_name,
+              start,
+              end,
+              formData.project_status,
+              0,
+              taskId
+            ]
+          );
+
+          // Remove old assignments
+          await dbConnection.query(
+            `
+            DELETE FROM task_management.task_assignments
+            WHERE task_id = ?
+            `,
+            [taskId]
+          );
+
+          // Insert new task assignments
+          for (const empId of formData.assignTo) {
+            await dbConnection.query(
+              `
+              INSERT INTO task_management.task_assignments
+              (
+                task_id,
+                empId
+
+              ) 
+              VALUES (?, ?)
+              `,
+              [
+                taskId,
+                empId
+
+              ]
+            );
+          }
+
+     
+          return {
+            statusCode: HttpStatus.OK,
+            message: ResponseMessageEnum.UPDATE,
+            data: true
+          };
+        } catch (error) {
+   
+          throw error;
+        } finally {
+    
+        }
+      }
+    } catch (error) {
+      throw error;
+    }
+  }
+  async deleteTask(taskId: number, empId: number): Promise<ResponseInterface> {
+ 
   
-      // Update the task details
+    try {
+  
+  
+      // Mark the task as deleted
       await dbConnection.query(
         `
         UPDATE task_management.task_assign_to_employee
-        SET
-          project_name = ?,
-          start_date = ?,
-          end_date = ?,
-          project_status = ?,
-          is_deleted = ?
-        WHERE task_id = ?
-        `,
-        [
-          formData.project_name,
-          start,
-          end,
-          formData.project_status,
-          formData.is_deleted,
-          taskId
-        ]
-      );
-  
-      // Remove old assignments
-      await dbConnection.query(
-        `
-        DELETE FROM task_management.task_assignments
+        SET is_deleted = 1
         WHERE task_id = ?
         `,
         [taskId]
       );
   
-      // Insert new task assignments
-      for (const empId of formData.assignTo) {
-        await dbConnection.query(
-          `
-          INSERT INTO task_management.task_assignments
-          (
-            task_id,
-            empId
-          ) 
-          VALUES (?, ?)
-          `,
-          [
-            taskId,
-            empId
-          ]
-        );
-      }
+      // Delete the specific assignment
+      await dbConnection.query(
+        `
+        DELETE FROM task_management.task_assignments
+        WHERE task_id = ? AND empId = ?
+        `,
+        [taskId, empId]
+      );
+
   
-      return {
-        statusCode: HttpStatus.OK,
-        message: ResponseMessageEnum.UPDATE,
-        data: true
-      };
-    } catch (error) {
-      throw error;
-    }
-  }
-  
-  async deleteTask(
-    empId: number,
-    employeeDetails: TaskAssignInterface
-  ): Promise<ResponseInterface> {
-    try {
-      const employeeId=JSON.stringify(employeeDetails.assignTo);
-      await dbConnection.query(`
-            UPDATE task_management.task_assign_to_employee
-            SET
-              start_date = ${mysql.escape(employeeDetails.start_date)},
-              end_date = ${mysql.escape(employeeDetails.end_date)},
-              project_status = ${mysql.escape(employeeDetails.project_status)},
-              is_deleted = 1,
-              empId = ${mysql.escape(employeeId)},
-              project_name = ${mysql.escape(employeeDetails.project_name)},
-            WHERE empId = ${mysql.escape(empId)}
-          `);
       return {
         statusCode: HttpStatus.OK,
         message: ResponseMessageEnum.DELETE,
         data: true
       };
     } catch (error) {
+
       throw error;
+    } finally {
+    
     }
   }
+  
 }

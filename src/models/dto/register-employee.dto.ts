@@ -48,3 +48,7 @@ export class TaskAssignDto{
     assignTo: number[];
 
 }
+export class GetTaskByRolesDto{
+    @ApiProperty({ type: [String] })
+    roles: string[];
+}

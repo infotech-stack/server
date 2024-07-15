@@ -23,3 +23,6 @@ export interface TaskAssignInterface{
     project_name: string;
     assignTo: number[];
 }
+export interface GetTaskByRolesInterface{
+    roles: string[];
+}
