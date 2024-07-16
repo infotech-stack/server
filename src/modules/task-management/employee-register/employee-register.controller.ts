@@ -1,5 +1,5 @@
 import { Body, Controller, Delete, Get, Post, Put, Query, Res, UploadedFile, UploadedFiles, UseInterceptors } from "@nestjs/common";
-import {  GetTaskByRolesDto, InsertEmployeeDto, TaskAssignDto } from 'src/models/dto/register-employee.dto';
+import {  GetTaskByRolesDto, InsertEmployeeDto, TaskAssignDto, TaskReportsDto } from 'src/models/dto/register-employee.dto';
 import { EmployeeRegisterService } from './employee-register.service';
 import { FileFieldsInterceptor, FileInterceptor, FilesInterceptor } from '@nestjs/platform-express';
 import { diskStorage } from 'multer';
@@ -37,10 +37,13 @@ async logoutMethod(@Query('empId') empId:number){
 }
 
 //EMPLOYEE
-@Get('get-employee')
-async getEmployee(){
+@ApiQuery({ name: 'empId', type: Number })
+@ApiBody({ type: GetTaskByRolesDto })
+@Post('get-employee')
+async getEmployee(@Query('empId') empId:number,@Body() getTasksByRoleDto:GetTaskByRolesDto){
     try {
-      return  this._employeeRegisterService.getEmployee();
+      const { roles } = getTasksByRoleDto;
+      return  this._employeeRegisterService.getEmployee(empId,roles);
     } catch (error) {
         throw error;
     }
@@ -81,63 +84,63 @@ async getEmployeeAttendance(){
 }
 
 
-// @Post('upload')
-// @ApiConsumes('multipart/form-data')
-// @ApiBody({
-//   schema: {
-//     type: 'object',
-//     properties: {
-//       projectName: { type: 'string' },
-//       startDate: { type: 'string', format: 'date' },
-//       endDate: { type: 'string', format: 'date' },
-//       projectStatus: { type: 'string' },
-//       taskName: { type: 'string' },
-//       assignTo: { type: 'string' },
-//       fileAttachments: {
-//         type: 'array',
-//         items: { type: 'string', format: 'binary' },
-//       },
-//     },
-//   },
-// })
-// @UseInterceptors(FileExtender)
-// @UseInterceptors(FileFieldsInterceptor([
-//   { name: 'fileAttachments', maxCount: 10 }
-// ], {
-//   storage: diskStorage({
-//     destination: './uploads',
-//     filename: (req, file, cb) => {
-//       cb(null, `${Date.now()}-${file.originalname}`);
-//     }
-//   })
-// }))
+@Post('upload')
+@ApiConsumes('multipart/form-data')
+@ApiBody({
+  schema: {
+    type: 'object',
+    properties: {
+      projectName: { type: 'string' },
+      startDate: { type: 'string', format: 'date' },
+      endDate: { type: 'string', format: 'date' },
+      projectStatus: { type: 'string' },
+      taskName: { type: 'string' },
+      assignTo: { type: 'string' },
+      fileAttachments: {
+        type: 'array',
+        items: { type: 'string', format: 'binary' },
+      },
+    },
+  },
+})
+@UseInterceptors(FileExtender)
+@UseInterceptors(FileFieldsInterceptor([
+  { name: 'fileAttachments', maxCount: 10 }
+], {
+  storage: diskStorage({
+    destination: './uploads',
+    filename: (req, file, cb) => {
+      cb(null, `${Date.now()}-${file.originalname}`);
+    }
+  })
+}))
 
-// async uploadFiles(
-//   @UploadedFiles() files: { fileAttachments?: Express.Multer.File[] },
-//   @Body() taskAssignDto: TaskAssignDto
-// ) {
-//   console.log(taskAssignDto);
+async uploadFiles(
+  @UploadedFiles() files: { fileAttachments?: Express.Multer.File[] },
+  @Body() taskAssignDto: TaskAssignDto
+) {
+  console.log(taskAssignDto);
   
-//   const fileNames = files.fileAttachments?.map(file => file.filename) || [];
-//   await this._employeeRegisterService.createTask(taskAssignDto, fileNames);
-//   return { message: 'Task assigned successfully' };
-// }
-// @Get('getFile')
-// async getFile(@Res() res: Response, @Query('file') fileName: string): Promise<void> {
-//   const filePath = path.join(`D:/Rks-project/RKS/server/uploads/${fileName}`);
-//   console.log(filePath);
+  const fileNames = files.fileAttachments?.map(file => file.filename) || [];
+  // await this._employeeRegisterService.createTask(taskAssignDto, fileNames);
+  return { message: 'Task assigned successfully' };
+}
+@Get('getFile')
+async getFile(@Res() res: Response, @Query('file') fileName: string): Promise<void> {
+  const filePath = path.join(`D:/Rks-project/RKS/server/uploads/${fileName}`);
+  console.log(filePath);
   
-//   try {
-//     if (fs.existsSync(filePath)) {
-//       res.sendFile(filePath);
-//     } else {
-//       res.status(404).send('File not found');
-//     }
-//   } catch (err) {
-//     console.error('Error retrieving file:', err);
-//     res.status(500).send('Server Error');
-//   }
-// }
+  try {
+    if (fs.existsSync(filePath)) {
+      res.sendFile(filePath);
+    } else {
+      res.status(404).send('File not found');
+    }
+  } catch (err) {
+    console.error('Error retrieving file:', err);
+    res.status(500).send('Server Error');
+  }
+}
 
 //TASK ASSIGN
 @Post('get-Tasks-ByRole')
@@ -172,4 +175,22 @@ async deleteTask(@Query('task_id') task_id:number,@Query('empId') empId:number){
     }
 }
 
+//EMPLOYEE SEARCH
+@Get('search-employee-by-id')
+async searchEmployeeById(@Query('empId') empId:number){
+  try {
+    return this._employeeRegisterService.searchEmployeeById(empId);
+  } catch (error) {
+    throw error;
+  }
+}
+//TASK REPORTS
+@Post('task-reports')
+async taskReports(@Query('empId') empId:number,@Query('task_id') task_id:number,@Body() status:TaskReportsDto){
+  try {
+    return this._employeeRegisterService.taskReports(empId,task_id,status);
+  } catch (error) {
+    throw error;
+  }
+}
 }

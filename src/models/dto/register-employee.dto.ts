@@ -21,6 +21,16 @@ export class InsertEmployeeDto{
     employee_role:string[]
     @ApiProperty()
     employee_access:string[]
+    @ApiProperty()
+    employee_email: string;
+    @ApiProperty()
+    employee_date_of_birth: Date ;
+    @ApiProperty()
+    employee_religion: string;
+    @ApiProperty()
+    employee_education: string;
+    @ApiProperty()
+    employee_experience: string;
 }
 export class loginDto{
     @ApiProperty()
@@ -51,4 +61,8 @@ export class TaskAssignDto{
 export class GetTaskByRolesDto{
     @ApiProperty({ type: [String] })
     roles: string[];
+}
+export class TaskReportsDto{
+    @ApiProperty()
+    project_status:string
 }

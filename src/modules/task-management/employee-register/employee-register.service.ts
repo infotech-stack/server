@@ -1,6 +1,6 @@
 import { HttpStatus, Injectable } from '@nestjs/common';
 import { dbConnection } from 'src/app.module';
-import { InsertEmployeeInterface, TaskAssignInterface } from 'src/models/interface/register-employee.interface';
+import { InsertEmployeeInterface, TaskAssignInterface, TaskReportsInterface } from 'src/models/interface/register-employee.interface';
 import * as mysql from 'mysql2';
 import ResponseInterface from 'src/models/interface/response.interface';
 import { ResponseMessageEnum } from 'src/models/enum/response-message.enum';
@@ -73,48 +73,72 @@ export class EmployeeRegisterService {
     }
   }
   // EMPLOYEE 
-  async getEmployee(): Promise<ResponseInterface> {
+  async getEmployee(empId:number,roles:string[]): Promise<ResponseInterface> {
     try {
-      const data = await dbConnection.query(`
-            SELECT * FROM task_management.employee_register 
-            
-          `);
-
-      return {
-        statusCode: HttpStatus.OK,
-        message: ResponseMessageEnum.GET,
-        data: data
-      };
+      let query = `
+        SELECT * FROM task_management.employee_register e
+        WHERE e.is_deleted = 0
+      `;
+      if (roles.includes('Admin') || roles.includes('Team Lead')) {
+        query += `
+          GROUP BY e.empId
+        `;
+        const employees = await dbConnection.query(query);
+        return {
+          statusCode: HttpStatus.OK,
+          message: ResponseMessageEnum.GET,
+          data: employees
+        };
+      } else {
+        query += `
+          AND e.empId = ?
+        `;
+        const employee = await dbConnection.query(query, [empId]);
+        return {
+          statusCode: HttpStatus.OK,
+          message: ResponseMessageEnum.GET,
+          data: employee
+        };
+      }
     } catch (error) {
       throw error;
     }
+  
   }
   async registerEmployee(employeeDetails: InsertEmployeeInterface): Promise<ResponseInterface> {
     try {
-
       const employeeRole = JSON.stringify(employeeDetails.employee_role);
       const employeeAccess = JSON.stringify(employeeDetails.employee_access);
       console.log(employeeDetails);
-
+  
       const employeeDateOfJoin = new Date(employeeDetails.employee_dateofjoin).toISOString().slice(0, 19).replace('T', ' ');
+      const employeeDateOfBirth = employeeDetails.employee_date_of_birth ? new Date(employeeDetails.employee_date_of_birth).toISOString().slice(0, 19).replace('T', ' ') : null;
+  
       console.log(employeeDateOfJoin);
-
+      console.log(employeeDateOfBirth);
+  
       await dbConnection.query(`
-            INSERT INTO task_management.employee_register
-            (
-              employee_name,
-              employee_designation,
-              employee_cabinno,
-              employee_dateofjoin,
-              employee_address,
-              employee_contactno,
-              employee_password,
-              employee_confirmpassword,
-              employee_role,
-              employee_access
-            )
-            VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?)
-          `, [
+        INSERT INTO task_management.employee_register
+        (
+          employee_name,
+          employee_designation,
+          employee_cabinno,
+          employee_dateofjoin,
+          employee_address,
+          employee_contactno,
+          employee_password,
+          employee_confirmpassword,
+          employee_role,
+          employee_access,
+          employee_email,
+          employee_date_of_birth,
+          employee_religion,
+          employee_education,
+          employee_experience,
+          is_deleted
+        )
+        VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?)
+      `, [
         employeeDetails.employee_name,
         employeeDetails.employee_designation,
         employeeDetails.employee_cabinno,
@@ -124,9 +148,15 @@ export class EmployeeRegisterService {
         employeeDetails.employee_password,
         employeeDetails.employee_confirmpassword,
         employeeRole,
-        employeeAccess
+        employeeAccess,
+        employeeDetails.employee_email,
+        employeeDateOfBirth,
+        employeeDetails.employee_religion,
+        employeeDetails.employee_education,
+        employeeDetails.employee_experience,
+        0
       ]);
-
+  
       return {
         statusCode: HttpStatus.ACCEPTED,
         message: ResponseMessageEnum.ADD,
@@ -135,8 +165,7 @@ export class EmployeeRegisterService {
     } catch (error) {
       throw error;
     }
-
-  }
+  } 
   async updateEmployee(
     empId: number,
     employeeDetails: InsertEmployeeInterface
@@ -154,7 +183,13 @@ export class EmployeeRegisterService {
               employee_password = ${mysql.escape(employeeDetails.employee_password)},
               employee_confirmpassword = ${mysql.escape(employeeDetails.employee_confirmpassword)},
               employee_role = ${mysql.escape(JSON.stringify(employeeDetails.employee_role))}, 
-              employee_access = ${mysql.escape(JSON.stringify(employeeDetails.employee_access))}
+              employee_access = ${mysql.escape(JSON.stringify(employeeDetails.employee_access))},
+              employee_email=${mysql.escape(employeeDetails.employee_email)},
+              employee_date_of_birth=${mysql.escape(employeeDetails.employee_date_of_birth)},
+              employee_religion=${mysql.escape(employeeDetails.employee_religion)},
+              employee_education=${mysql.escape(employeeDetails.employee_education)},
+              employee_experience=${mysql.escape(employeeDetails.employee_experience)},
+              is_deleted=0
             WHERE empId = ${mysql.escape(empId)}
           `);
       return {
@@ -171,18 +206,20 @@ export class EmployeeRegisterService {
   ): Promise<ResponseInterface> {
     try {
       await dbConnection.query(`
-          DELETE FROM task_management.employee_register WHERE empId=${mysql.escape(empId)}
-            `);
+        UPDATE task_management.employee_register 
+        SET is_deleted = 1
+        WHERE empId = ?
+      `, [empId]);
+  
       return {
-        statusCode: HttpStatus.OK,
+        statusCode: HttpStatus.ACCEPTED,
         message: ResponseMessageEnum.DELETE,
         data: true
-      }
+      };
     } catch (error) {
       throw error;
     }
   }
-
   //EMPLOYEE ATTENDANCE
   async employeeAttendance(): Promise<ResponseInterface> {
     try {
@@ -237,7 +274,6 @@ JOIN
     }
   }
   //TASK ASSIGN
-
   // async createTask(formData: TaskAssignInterface, filename: string[]): Promise<ResponseInterface> {
   //   try {
    
@@ -281,7 +317,7 @@ JOIN
   //     throw error;
   //   }
   // } 
-  async getTasksByRole(empId: number, roles: string[]): Promise<any> {
+  async getTasksByRole(empId: number, roles: string[]): Promise<ResponseInterface> {
     try {
       // Base query
       let query = `
@@ -293,7 +329,7 @@ JOIN
               'task_id', t.task_id,
               'start_date', DATE_FORMAT(t.start_date,'%Y-%m-%d %H:%i:%s'),
               'end_date', DATE_FORMAT(t.end_date,'%Y-%m-%d %H:%i:%s'),
-              'project_status', t.project_status,
+              'project_status',a.project_status,
               'is_deleted', t.is_deleted,
               'project_name', t.project_name
             )
@@ -370,13 +406,15 @@ JOIN
           INSERT INTO task_management.task_assignments
           (
             task_id,
-            empId
+            empId,
+            project_status
           ) 
-          VALUES (?, ?)
+          VALUES (?, ?,?)
           `,
           [
             taskId,
-            empId
+            empId,
+            formData.project_status
           ]
         );
       }
@@ -435,14 +473,16 @@ JOIN
               INSERT INTO task_management.task_assignments
               (
                 task_id,
-                empId
+                empId,
+                project_status
 
               ) 
-              VALUES (?, ?)
+              VALUES (?, ?,?)
               `,
               [
                 taskId,
-                empId
+                empId,
+                formData.project_status
 
               ]
             );
@@ -466,11 +506,7 @@ JOIN
     }
   }
   async deleteTask(taskId: number, empId: number): Promise<ResponseInterface> {
- 
-  
     try {
-  
-  
       // Mark the task as deleted
       await dbConnection.query(
         `
@@ -503,5 +539,87 @@ JOIN
     
     }
   }
+  //EMPLOYEE SEARCH
+  async searchEmployeeById(empId: number): Promise<ResponseInterface> {
+    try {
+      const employeeQuery = `
+        SELECT *
+        FROM task_management.employee_register
+        WHERE empId = ${mysql.escape(empId)} AND is_deleted = 0;
+      `;
+      
+      const taskQuery = `
+        SELECT
+          t.task_id,
+          DATE_FORMAT(t.start_date, '%Y-%m-%d %H:%i:%s') AS start_date,
+          DATE_FORMAT(t.end_date, '%Y-%m-%d %H:%i:%s') AS end_date,
+          t.project_status,
+          t.is_deleted,
+          t.project_name
+        FROM
+          task_management.task_assign_to_employee t
+        JOIN
+          task_management.task_assignments a ON t.task_id = a.task_id
+        WHERE
+          a.empId = ${mysql.escape(empId)} AND t.is_deleted = 0;
+      `;
   
+      // Execute both queries concurrently
+      const [employeeData, taskData] = await Promise.all([
+        dbConnection.query(employeeQuery),
+        dbConnection.query(taskQuery)
+      ]);
+  
+      // Extract employee details from the result
+      const employee = employeeData[0];
+  
+      // If taskData has results, format taskDetails
+      const taskDetails = taskData.map(task => ({
+        task_id: task.task_id,
+        start_date: task.start_date,
+        end_date: task.end_date,
+        project_status: task.project_status,
+        is_deleted: task.is_deleted,
+        project_name: task.project_name
+      }));
+  
+      // Combine employee details with taskDetails
+      const responseData = [{
+        ...employee,
+        taskDetails: taskDetails || []
+      }];
+  
+      return {
+        statusCode: HttpStatus.OK,
+        message: ResponseMessageEnum.GET,
+        data: responseData
+      };
+    } catch (error) {
+      throw error;
+    }
+  }
+  //TASK REPORTS
+  async taskReports(empId: number, taskId: number, newStatus: TaskReportsInterface): Promise<ResponseInterface> {
+    try {
+      // Update the project_status for the specific task assigned to the employee
+      await dbConnection.query(
+        `
+        UPDATE task_management.task_assign_to_employee AS tae
+        INNER JOIN task_management.task_assignments AS ta
+        ON tae.task_id = ta.task_id
+        SET tae.project_status = ?
+        WHERE ta.task_id = ? AND ta.empId = ?
+        `,
+        [newStatus.project_status, taskId, empId]
+      );
+
+      return {
+        statusCode: HttpStatus.OK,
+        message: ResponseMessageEnum.UPDATE,
+        data: true
+      };
+    } catch (error) {
+      throw error;
+    }
+  }
 }
