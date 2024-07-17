@@ -10,17 +10,17 @@ export interface InsertEmployeeInterface {
     employee_role: string[];
     employee_access: string[];
     employee_email: string;
-    employee_date_of_birth: Date ;
+    employee_date_of_birth: Date;
     employee_religion: string;
     employee_education: string;
     employee_experience: string;
-  }
-  
-export interface LoginInterface{
-    employee_name:string;
-    employee_password:string;
 }
-export interface TaskAssignInterface{
+
+export interface LoginInterface {
+    employee_name: string;
+    employee_password: string;
+}
+export interface TaskAssignInterface {
 
     start_date: Date;
     end_date: Date;
@@ -29,10 +29,17 @@ export interface TaskAssignInterface{
     project_name: string;
     assignTo: number[];
 }
-export interface GetTaskByRolesInterface{
+export interface GetTaskByRolesInterface {
     roles: string[];
 }
-export class TaskReportsInterface{
- 
-    project_status:string
+export interface TaskReportsInterface {
+
+    project_status: string
+}
+export interface InsertMessageInterface{
+    message_description: string;
+    filename: string[];
+    is_deleted: number;
+    empId: number;
+    send_by: number;
 }

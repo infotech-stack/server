@@ -1,30 +1,30 @@
 import { ApiProperty } from "@nestjs/swagger";
 
-export class InsertEmployeeDto{
+export class InsertEmployeeDto {
     @ApiProperty()
-    employee_name:string
+    employee_name: string
     @ApiProperty()
-    employee_designation:string
+    employee_designation: string
     @ApiProperty()
-    employee_cabinno:string
+    employee_cabinno: string
     @ApiProperty()
-    employee_dateofjoin:Date
+    employee_dateofjoin: Date
     @ApiProperty()
-    employee_address:string
+    employee_address: string
     @ApiProperty()
-    employee_contactno:number
+    employee_contactno: number
     @ApiProperty()
-    employee_password:string
+    employee_password: string
     @ApiProperty()
-    employee_confirmpassword:string
+    employee_confirmpassword: string
     @ApiProperty()
-    employee_role:string[]
+    employee_role: string[]
     @ApiProperty()
-    employee_access:string[]
+    employee_access: string[]
     @ApiProperty()
     employee_email: string;
     @ApiProperty()
-    employee_date_of_birth: Date ;
+    employee_date_of_birth: Date;
     @ApiProperty()
     employee_religion: string;
     @ApiProperty()
@@ -32,24 +32,24 @@ export class InsertEmployeeDto{
     @ApiProperty()
     employee_experience: string;
 }
-export class loginDto{
+export class loginDto {
     @ApiProperty()
-    employee_name:string
+    employee_name: string
     @ApiProperty()
-    employee_password:string
+    employee_password: string
 }
-export class TaskAssignDto{
+export class TaskAssignDto {
 
-  
+
     @ApiProperty()
     start_date: Date;
-  
+
     @ApiProperty()
     end_date: Date;
-  
+
     @ApiProperty()
     project_status: string;
-  
+
     @ApiProperty()
     is_deleted: number;
     @ApiProperty()
@@ -58,11 +58,23 @@ export class TaskAssignDto{
     assignTo: number[];
 
 }
-export class GetTaskByRolesDto{
+export class GetTaskByRolesDto {
     @ApiProperty({ type: [String] })
     roles: string[];
 }
-export class TaskReportsDto{
+export class TaskReportsDto {
     @ApiProperty()
-    project_status:string
+    project_status: string
+}
+export class InsertMessageDto {
+    @ApiProperty()
+    message_description: string;
+    @ApiProperty()
+    filename: string[];
+    @ApiProperty()
+    is_deleted: number;
+    @ApiProperty()
+    empId: number;
+    @ApiProperty()
+    send_by: number;
 }

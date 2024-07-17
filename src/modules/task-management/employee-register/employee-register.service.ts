@@ -1,6 +1,6 @@
 import { HttpStatus, Injectable } from '@nestjs/common';
 import { dbConnection } from 'src/app.module';
-import { InsertEmployeeInterface, TaskAssignInterface, TaskReportsInterface } from 'src/models/interface/register-employee.interface';
+import { InsertEmployeeInterface, InsertMessageInterface, TaskAssignInterface, TaskReportsInterface } from 'src/models/interface/register-employee.interface';
 import * as mysql from 'mysql2';
 import ResponseInterface from 'src/models/interface/response.interface';
 import { ResponseMessageEnum } from 'src/models/enum/response-message.enum';
@@ -73,7 +73,7 @@ export class EmployeeRegisterService {
     }
   }
   // EMPLOYEE 
-  async getEmployee(empId:number,roles:string[]): Promise<ResponseInterface> {
+  async getEmployee(empId: number, roles: string[]): Promise<ResponseInterface> {
     try {
       let query = `
         SELECT * FROM task_management.employee_register e
@@ -103,20 +103,20 @@ export class EmployeeRegisterService {
     } catch (error) {
       throw error;
     }
-  
+
   }
   async registerEmployee(employeeDetails: InsertEmployeeInterface): Promise<ResponseInterface> {
     try {
       const employeeRole = JSON.stringify(employeeDetails.employee_role);
       const employeeAccess = JSON.stringify(employeeDetails.employee_access);
       console.log(employeeDetails);
-  
+
       const employeeDateOfJoin = new Date(employeeDetails.employee_dateofjoin).toISOString().slice(0, 19).replace('T', ' ');
       const employeeDateOfBirth = employeeDetails.employee_date_of_birth ? new Date(employeeDetails.employee_date_of_birth).toISOString().slice(0, 19).replace('T', ' ') : null;
-  
+
       console.log(employeeDateOfJoin);
       console.log(employeeDateOfBirth);
-  
+
       await dbConnection.query(`
         INSERT INTO task_management.employee_register
         (
@@ -156,7 +156,7 @@ export class EmployeeRegisterService {
         employeeDetails.employee_experience,
         0
       ]);
-  
+
       return {
         statusCode: HttpStatus.ACCEPTED,
         message: ResponseMessageEnum.ADD,
@@ -165,7 +165,7 @@ export class EmployeeRegisterService {
     } catch (error) {
       throw error;
     }
-  } 
+  }
   async updateEmployee(
     empId: number,
     employeeDetails: InsertEmployeeInterface
@@ -210,7 +210,7 @@ export class EmployeeRegisterService {
         SET is_deleted = 1
         WHERE empId = ?
       `, [empId]);
-  
+
       return {
         statusCode: HttpStatus.ACCEPTED,
         message: ResponseMessageEnum.DELETE,
@@ -276,11 +276,11 @@ JOIN
   //TASK ASSIGN
   // async createTask(formData: TaskAssignInterface, filename: string[]): Promise<ResponseInterface> {
   //   try {
-   
+
   //     const start= new Date(formData.start_date).toISOString().slice(0, 19).replace('T', ' ');
   //     const end = new Date(formData.end_date).toISOString().slice(0, 19).replace('T', ' ');
   //     console.log(start,end);
-      
+
   //     await dbConnection.query(
   //       `
   //       INSERT INTO task_management.task_assign_to_employee
@@ -343,7 +343,7 @@ JOIN
         WHERE
           t.is_deleted = 0
       `;
-  
+
       // Check for "Admin" or "Team Lead" roles
       if (roles.includes('Admin') || roles.includes('Team Lead')) {
         query += `
@@ -355,12 +355,12 @@ JOIN
           GROUP BY e.empId
         `;
       }
-  
+
       // Execute query
-      const tasks = roles.includes('Admin') || roles.includes('Team Lead') 
+      const tasks = roles.includes('Admin') || roles.includes('Team Lead')
         ? await dbConnection.query(query)
         : await dbConnection.query(query, [empId]);
-  
+
       return {
         statusCode: HttpStatus.OK,
         message: ResponseMessageEnum.GET,
@@ -374,7 +374,7 @@ JOIN
     try {
       const start = new Date(formData.start_date).toISOString().slice(0, 19).replace('T', ' ');
       const end = new Date(formData.end_date).toISOString().slice(0, 19).replace('T', ' ');
-  
+
       // Insert the task into the tasks table
       const taskResult = await dbConnection.query(
         `
@@ -396,9 +396,9 @@ JOIN
           0
         ]
       );
-  
+
       const taskId = taskResult.insertId;
-  
+
       // Insert task assignments
       for (const empId of formData.assignTo) {
         await dbConnection.query(
@@ -418,7 +418,7 @@ JOIN
           ]
         );
       }
-  
+
       return {
         statusCode: HttpStatus.ACCEPTED,
         message: ResponseMessageEnum.ADD,
@@ -488,17 +488,17 @@ JOIN
             );
           }
 
-     
+
           return {
             statusCode: HttpStatus.OK,
             message: ResponseMessageEnum.UPDATE,
             data: true
           };
         } catch (error) {
-   
+
           throw error;
         } finally {
-    
+
         }
       }
     } catch (error) {
@@ -516,7 +516,7 @@ JOIN
         `,
         [taskId]
       );
-  
+
       // Delete the specific assignment
       await dbConnection.query(
         `
@@ -526,7 +526,7 @@ JOIN
         [taskId, empId]
       );
 
-  
+
       return {
         statusCode: HttpStatus.OK,
         message: ResponseMessageEnum.DELETE,
@@ -536,7 +536,7 @@ JOIN
 
       throw error;
     } finally {
-    
+
     }
   }
   //EMPLOYEE SEARCH
@@ -547,7 +547,7 @@ JOIN
         FROM task_management.employee_register
         WHERE empId = ${mysql.escape(empId)} AND is_deleted = 0;
       `;
-      
+
       const taskQuery = `
         SELECT
           t.task_id,
@@ -563,16 +563,16 @@ JOIN
         WHERE
           a.empId = ${mysql.escape(empId)} AND t.is_deleted = 0;
       `;
-  
+
       // Execute both queries concurrently
       const [employeeData, taskData] = await Promise.all([
         dbConnection.query(employeeQuery),
         dbConnection.query(taskQuery)
       ]);
-  
+
       // Extract employee details from the result
       const employee = employeeData[0];
-  
+
       // If taskData has results, format taskDetails
       const taskDetails = taskData.map(task => ({
         task_id: task.task_id,
@@ -582,13 +582,13 @@ JOIN
         is_deleted: task.is_deleted,
         project_name: task.project_name
       }));
-  
+
       // Combine employee details with taskDetails
       const responseData = [{
         ...employee,
         taskDetails: taskDetails || []
       }];
-  
+
       return {
         statusCode: HttpStatus.OK,
         message: ResponseMessageEnum.GET,
@@ -622,4 +622,68 @@ JOIN
       throw error;
     }
   }
+
+  //MESSAGE
+  async postMessage(message: InsertMessageInterface):Promise<ResponseInterface> {
+    try {
+      console.log(message, 'service');
+
+      const files = JSON.stringify(message.filename);
+      await dbConnection.query(`
+        INSERT INTO task_management.message
+        (
+          message_description,
+          filename,
+          is_deleted,
+          empId,
+          send_by
+        )
+        VALUES (?, ?, ?, ?, ?)`,
+        [
+          message.message_description,
+          files,
+          0,
+          message.empId,
+          message.send_by
+        ]);
+      return {
+        statusCode: HttpStatus.OK,
+        message: ResponseMessageEnum.ADD,
+        data: true
+      }
+    } catch (error) {
+      throw error;
+    }
+  }
+  async getMessage(empId: number): Promise<ResponseInterface> {
+    try {
+      const data = await dbConnection.query(`
+        SELECT 
+          e.employee_name AS receiver_name, 
+          e.empId AS receiver_empId, 
+          s.employee_name AS sender_name,
+          m.*
+        FROM 
+          task_management.employee_register e
+        JOIN 
+          task_management.message m ON e.empId = m.empId
+        JOIN 
+          task_management.employee_register s ON m.send_by = s.empId
+        WHERE 
+          e.empId = ?
+        ORDER BY 
+          m.message_id DESC
+        LIMIT 1;
+      `, [empId]);
+  
+      return {
+        statusCode: HttpStatus.OK,
+        message: ResponseMessageEnum.GET,
+        data: data
+      };
+    } catch (error) {
+      throw error;
+    }
+  }
+  
 }
