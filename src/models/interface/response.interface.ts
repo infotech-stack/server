@@ -4,4 +4,5 @@ export default interface ResponseInterface {
   statusCode?: number;
   message: ResponseMessageEnum;
   data?: any;
+  total?:any;
 }

@@ -6,6 +6,9 @@ import { ProjectNameModule } from './modules/project-name/project-name.module';
 import { TaskManagementModule } from './modules/task-management/task-management.module';
 import { MulterModule } from '@nestjs/platform-express';
 import { diskStorage } from 'multer';
+import { MessageModule } from './modules/task-management/message/message.module';
+
+
 @Module({
   imports: [
     ConfigModule.forRoot({
@@ -13,9 +16,11 @@ import { diskStorage } from 'multer';
       envFilePath: '.env',
     }),
     TaskManagementModule,
+  
     MulterModule.register({
       dest: './uploads', // Destination directory for uploaded files
     }),
+
     // ProjectNameModule,
   ],
   controllers: [],

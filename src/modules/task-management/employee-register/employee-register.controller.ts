@@ -38,13 +38,30 @@ async logoutMethod(@Query('empId') empId:number){
 }
 
 //EMPLOYEE
-@ApiQuery({ name: 'empId', type: Number })
-@ApiBody({ type: GetTaskByRolesDto })
+// @ApiQuery({ name: 'empId', type: Number })
+// @ApiBody({ type: GetTaskByRolesDto })
+
+@Get('get-all-employee')
+async getAllEmployee(){
+  try {
+    return await this._employeeRegisterService.getAllEmployee();
+  } catch (error) {
+    throw error;
+  }
+}
 @Post('get-employee')
-async getEmployee(@Query('empId') empId:number,@Body() getTasksByRoleDto:GetTaskByRolesDto){
+async getEmployee(
+  @Query('empId') empId: number,
+  // @Query('search') search: string,
+  // @Query('sort_field') sort_field: string,
+  // @Query('sort_order') sort_order: string,
+  @Query('current_page') current_page: number,
+  @Query('page_size') page_size: number,
+  @Body() getEmployeeDto: GetTaskByRolesDto,
+){
     try {
-      const { roles } = getTasksByRoleDto;
-      return  this._employeeRegisterService.getEmployee(empId,roles);
+      const { roles } = getEmployeeDto;
+      return  this._employeeRegisterService.getEmployee(empId,roles,current_page,page_size);
     } catch (error) {
         throw error;
     }
@@ -73,7 +90,22 @@ async removeEmployee(@Query('empId') empid:number){
         throw error;
     }
 }
-
+@Get('get-employee-role')
+async getEmployeeRole(){
+  try {
+    return await this._employeeRegisterService.getEmployeeRole();
+  } catch (error) {
+    throw error;
+  }
+}
+@Get('get-employee-access')
+async getEmployeeAccess(){
+  try {
+    return await this._employeeRegisterService.getEmployeeAccess();
+  } catch (error) {
+    throw error;
+  }
+}
 //EMPLOYEE ATTENDANCE
 @Get('employee-attendance')
 async getEmployeeAttendance(){
@@ -145,11 +177,34 @@ async getEmployeeAttendance(){
 
 //TASK ASSIGN
 @Post('get-Tasks-ByRole')
-@ApiQuery({ name: 'empId', type: Number })
-@ApiBody({ type: GetTaskByRolesDto })
-async getTasksByRole(@Query('empId') empId: number, @Body() getTasksByRoleDto: GetTaskByRolesDto) {
+// @ApiQuery({ name: 'empId', type: Number })
+// @ApiQuery({ name: 'current_page', type: Number })
+// @ApiQuery({ name: 'page_size', type: Number })
+// @ApiQuery({ name: 'search', type: String })
+// @ApiQuery({ name: 'sort_field', type: String })
+// @ApiQuery({ name: 'sort_order', type: String })
+// @ApiBody({ type: GetTaskByRolesDto })
+async getTasksByRole(
+  @Query('empId') empId: number,
+  @Body() getTasksByRoleDto: GetTaskByRolesDto,
+  @Query('current_page') current_page: number,
+  @Query('page_size') page_size: number,
+  // @Query('search') search: string='',
+  @Query('sort_field') sort_field: string,
+  @Query('sort_order') sort_order: string
+ ) {
   const { roles } = getTasksByRoleDto;
-  return this._employeeRegisterService.getTasksByRole(empId, roles);
+  const currentPage = current_page > 0 ? current_page : 1;
+  const pageSize = page_size > 0 ? page_size : 5;
+
+  return this._employeeRegisterService.getTasksByRole( 
+    empId,
+    roles,
+    current_page,
+    page_size,
+    // search,
+    sort_field,
+    sort_order);
 }
 @Post('task-assign-to-employee')
 async taskAssignToEmployee(@Body() formData: TaskAssignDto) {
@@ -186,9 +241,11 @@ async searchEmployeeById(@Query('empId') empId:number){
   }
 }
 //TASK REPORTS
-@Post('task-reports')
+@Put('task-reports')
 async taskReports(@Query('empId') empId:number,@Query('task_id') task_id:number,@Body() status:TaskReportsDto){
   try {
+    console.log(status,'controllr');
+    
     return this._employeeRegisterService.taskReports(empId,task_id,status);
   } catch (error) {
     throw error;

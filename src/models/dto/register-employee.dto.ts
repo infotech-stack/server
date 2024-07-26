@@ -18,10 +18,6 @@ export class InsertEmployeeDto {
     @ApiProperty()
     employee_confirmpassword: string
     @ApiProperty()
-    employee_role: string[]
-    @ApiProperty()
-    employee_access: string[]
-    @ApiProperty()
     employee_email: string;
     @ApiProperty()
     employee_date_of_birth: Date;
@@ -31,6 +27,10 @@ export class InsertEmployeeDto {
     employee_education: string;
     @ApiProperty()
     employee_experience: string;
+    @ApiProperty()
+    employee_role: number[];
+    @ApiProperty()
+    employee_access: number[];
 }
 export class loginDto {
     @ApiProperty()
@@ -39,17 +39,12 @@ export class loginDto {
     employee_password: string
 }
 export class TaskAssignDto {
-
-
     @ApiProperty()
     start_date: Date;
-
     @ApiProperty()
     end_date: Date;
-
     @ApiProperty()
     project_status: string;
-
     @ApiProperty()
     is_deleted: number;
     @ApiProperty()
