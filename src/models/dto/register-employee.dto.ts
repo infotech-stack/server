@@ -1,4 +1,5 @@
 import { ApiProperty } from "@nestjs/swagger";
+import { IsArray, IsString } from "class-validator";
 
 export class InsertEmployeeDto {
     @ApiProperty()
@@ -31,6 +32,8 @@ export class InsertEmployeeDto {
     employee_role: number[];
     @ApiProperty()
     employee_access: number[];
+    @ApiProperty()
+    employee_gender: string;
 }
 export class loginDto {
     @ApiProperty()
@@ -73,3 +76,49 @@ export class InsertMessageDto {
     @ApiProperty()
     send_by: number;
 }
+export class ResetPasswordDto{
+@ApiProperty()
+employee_name:string;
+@ApiProperty()
+employee_password:string 
+@ApiProperty()
+employee_confirmpassword:string;
+}
+export class TaskWithMessageDto{
+    @ApiProperty()
+    start_date:Date;
+    @ApiProperty()
+    end_date:Date;
+    @ApiProperty()
+    project_status:string;
+    @ApiProperty()
+    message_description:string;
+    @ApiProperty()
+    project_name:string;
+    @ApiProperty()
+    filename: string[];
+    @ApiProperty()
+    empId: string[];
+    @ApiProperty()
+    send_by: number;
+}
+export class UploadFilesDto {
+    @IsString()
+    projectName: string;
+  
+    @IsString()
+    startDate: string;
+  
+    @IsString()
+    endDate: string;
+  
+    @IsString()
+    projectStatus: string;
+  
+    @IsArray()
+    @IsString({ each: true })
+    assignTo: string[];
+  
+    @IsString()
+    messageDescription: string;
+  }

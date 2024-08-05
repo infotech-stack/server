@@ -14,6 +14,7 @@ export interface InsertEmployeeInterface {
     employee_experience: string;
     employee_role: number[];
     employee_access: number[];
+    employee_gender: string;
 }
 
 export interface LoginInterface {
@@ -37,9 +38,26 @@ export interface TaskReportsInterface {
     project_status: string
 }
 export interface InsertMessageInterface{
+    
     message_description: string;
     filename: string[];
     is_deleted: number;
-    empId: number;
+    empId: string[];
+    send_by: number;
+}
+
+export interface ResetPasswordInterface{
+employee_name:string;
+employee_password:string 
+employee_confirmpassword:string;
+}
+export interface TaskWithMessageInterface{
+    start_date:Date;
+    end_date:Date;
+    project_status:string;
+    message_description:string;
+    project_name:string;
+    filename: string[];
+    empId: string[];
     send_by: number;
 }
